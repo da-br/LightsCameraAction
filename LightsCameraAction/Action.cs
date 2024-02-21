@@ -5,11 +5,16 @@ public abstract class Action<TResult>
     public abstract Option<TResult> Run();
 }
 
-public class ActionSuccess : Action<string>
+public abstract class Action<TRunArgs, TResult>
 {
-    public override Option<string> Run()
+    public abstract Option<TResult> Run(TRunArgs args);
+}
+
+public class ActionSuccess : Action<string, string>
+{
+    public override Option<string> Run(string input)
     {
-        return Option<string>.Success("winner winner chicken dinner");
+        return Option<string>.Success($"winner winner chicken dinner; {input}");
     }
 }
 

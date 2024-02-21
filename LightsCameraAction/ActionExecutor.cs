@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text;
 using Microsoft.Extensions.Logging;
 
@@ -11,6 +12,20 @@ public class ActionExecutor
     public ActionExecutor(ILogger logger)
     {
         _logger = logger;
+    }
+
+    public TOut Execute<TResult, TOut>(Func<Option<TResult>> action, Func<TResult, TOut> onSuccess, Func<TOut> onFailure)
+    {
+        using (_logger.BeginScope(action.GetType().Name))
+        {
+            _logger.LogTrace("Running {ActionType}", action.GetType().Name);
+
+            var result = action();
+
+            _history.Push(new ExecuteHistory(action.GetType().Name, result.IsSuccess));
+
+            return result.Match(onSuccess, onFailure);
+        }
     }
 
     public TOut Execute<TResult, TOut>(Action<TResult> action, Func<TResult, TOut> onSuccess, Func<TOut> onFailure)
@@ -57,11 +72,11 @@ public class ActionExecutor
         }
     }
 
-    public ForEachExecutor<T> ForEach<T, TResult>(IEnumerable<T> enumerable)
+    public ForEachExecutor<T, TResult> ForEach<T, TResult>(IEnumerable<T> enumerable, Action<T, TResult> action)
     {
         using (_logger.BeginScope(nameof(ForEach)))
         {
-            return new ForEachExecutor<T>(enumerable, _logger);
+            return new ForEachExecutor<T, TResult>(enumerable, action, _logger);
         }
     }
 
@@ -163,49 +178,39 @@ public class FalseExecutor<TResult>
     }
 }
 
-public class ForEachExecutor<T>
+public class ForEachExecutor<TInput, TResult>
 {
-    private readonly IEnumerable<T> _enumerable;
+    private readonly IEnumerable<TInput> _enumerable;
+    private readonly Action<TInput, TResult> _action;
     private readonly ILogger _logger;
     private int _index;
     private readonly int _maxIndex;
 
-    public ForEachExecutor(IEnumerable<T> enumerable, ILogger logger)
+    public ForEachExecutor(IEnumerable<TInput> enumerable, Action<TInput, TResult> action, ILogger logger)
     {
         _enumerable = enumerable;
+        _action = action;
         _logger = logger;
         _index = 0;
         _maxIndex = _enumerable.Count();
     }
 
-    public IEnumerable<TOut> Map<TOut>(Func<T, TOut> f, int startIndex, int endIndex)
+    public IEnumerable<TOut> Map<TOut>(Func<Option<TResult>, TOut> f)
     {
         foreach (var e in _enumerable)
         {
-            if (_index < startIndex)
-            {
-                _index++;
-                continue;
-            }
-
-            if (_index >= endIndex)
-            {
-                _index++;
-                break;
-            }
-
             _logger.LogTrace("On iteration {I}/{MaxIteration}", _index, _maxIndex);
-            yield return f(e);
+            yield return f(_action.Run(e));
             _index++;
         }
     }
 
-    public IEnumerable<TOut> Map<TOut>(Func<T, TOut> f)
+    public IEnumerable<Option<TResult>> Map()
     {
         foreach (var e in _enumerable)
         {
             _logger.LogTrace("On iteration {I}/{MaxIteration}", _index, _maxIndex);
-            yield return f(e);
+            yield return _action.Run(e);
             _index++;
         }
     }

@@ -16,7 +16,7 @@ public class MockWorkflow
     public void Execute(CancellationToken cancellationToken)
     {
         var action1 = new ActionSuccess();
-        var res1 = _actionExecutor.Execute(action1,
+        var res1 = _actionExecutor.Execute(() => action1.Run("SomeString"),
             onSuccess: s => s,
             onFailure: () =>
             {
