@@ -10,29 +10,11 @@ public class MockWorkflow
     public MockWorkflow(ILogger logger)
     {
         _logger = logger;
-        _actionExecutor = new ActionExecutor(logger);
     }
 
     public void Execute(CancellationToken cancellationToken)
     {
-        var action1 = new ActionSuccess("this can be done through DI", 1);
-        
-        var res1 = _actionExecutor.Execute(() => action1.Run("SomeString"),
-            onSuccess: s => s,
-            onFailure: () =>
-            {
-                _logger.LogInformation("This failed");
-                Unsuccessful(cancellationToken);
-                return "";
-            });
-
-        var answer = _actionExecutor.If<string>("first if", () => true)
-            .OnTrue(ae => { return ae.Execute(new ActionFail(), s => s, () => ""); })
-            .OnFalse(_ =>
-            {
-                var this1 = "";
-                return $"{this1} this2";
-            });
+        var action1 = new ActionSuccess(null, null);
     }
 
     private void Unsuccessful(CancellationToken cancellationToken)

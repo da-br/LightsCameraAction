@@ -7,22 +7,22 @@ namespace LightsCameraAction;
 public class ActionExecutor
 {
     private readonly ILogger _logger;
-    private readonly Stack<ExecuteHistory> _history = new();
+    private readonly Queue<ExecuteHistory> _history = new();
 
-    public ActionExecutor(ILogger logger)
+    public ActionExecutor(ILogger<ActionExecutor> logger)
     {
         _logger = logger;
     }
 
-    public TOut Execute<TResult, TOut>(Func<Option<TResult>> action, Func<TResult, TOut> onSuccess, Func<TOut> onFailure)
+    public TOut Execute<TResult, TOut>(string name, Func<Option<TResult>> action, Func<TResult, TOut> onSuccess, Func<TOut> onFailure)
     {
         using (_logger.BeginScope(action.GetType().Name))
         {
-            _logger.LogTrace("Running {ActionType}", action.GetType().Name);
+            _logger.LogTrace("Running {Name}:{ActionType}", name, action.GetType().Name);
 
             var result = action();
 
-            _history.Push(new ExecuteHistory(action.GetType().Name, result.IsSuccess));
+            _history.Enqueue(new ExecuteHistory(name, action.GetType().Name, result.IsSuccess));
 
             return result.Match(onSuccess, onFailure);
         }
@@ -36,7 +36,7 @@ public class ActionExecutor
 
             var result = action.Run();
 
-            _history.Push(new ExecuteHistory(action.GetType().Name, result.IsSuccess));
+            _history.Enqueue(new ExecuteHistory(action.GetType().Name, result.IsSuccess));
 
             return result.Match(onSuccess, onFailure);
         }
@@ -50,7 +50,7 @@ public class ActionExecutor
 
             var result = action.Run();
 
-            _history.Push(new ExecuteHistory(name, action.GetType().Name, result.IsSuccess));
+            _history.Enqueue(new ExecuteHistory(name, action.GetType().Name, result.IsSuccess));
 
             return result.Match(onSuccess, onFailure);
         }
@@ -63,11 +63,11 @@ public class ActionExecutor
             _logger.LogInformation("{Name}: Running {ControlFlow}", name, nameof(If));
             if (result())
             {
-                _history.Push(new ExecuteHistory(name, "If", true));
+                _history.Enqueue(new ExecuteHistory(name, "If", true));
                 return new TrueExecutor<TResult>(true, this, _logger);
             }
 
-            _history.Push(new ExecuteHistory(name, "If", false));
+            _history.Enqueue(new ExecuteHistory(name, "If", false));
             return new TrueExecutor<TResult>(false, this, _logger);
         }
     }
@@ -83,21 +83,31 @@ public class ActionExecutor
     public string RenderHistory(bool successful)
     {
         var sb = new StringBuilder("Start");
+        sb.AppendLine();
         sb.Append('|');
+        sb.AppendLine();
         sb.Append('|');
+        sb.AppendLine();
         sb.Append('V');
-        while (_history.TryPop(out var history))
+        sb.AppendLine();
+        while (_history.TryDequeue(out var history))
         {
             if (history.Name is not null)
             {
                 sb.Append(history.Name);
+                sb.AppendLine();
             }
 
             sb.Append(history.Type);
+            sb.AppendLine();
             sb.Append('|');
+            sb.AppendLine();
             sb.Append(history.Successful);
+            sb.AppendLine();
             sb.Append('|');
+            sb.AppendLine();
             sb.Append('V');
+            sb.AppendLine();
         }
 
         sb.Append(successful ? "Workflow Terminated Successfully" : "Workflow Terminated Unsuccessfully");

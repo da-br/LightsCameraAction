@@ -12,10 +12,10 @@ public abstract class Action<TRunArgs, TResult>
 
 public class ActionSuccess : Action<string, string>
 {
-    public ActionSuccess(string initTimeArgs1, int initArgs2)
+    public ActionSuccess(IRepository<string> repository, SomeService initArgs2)
     {
-        
     }
+
     public override Option<string> Run(string input)
     {
         return Option<string>.Success($"winner winner chicken dinner; {input}");
@@ -24,6 +24,10 @@ public class ActionSuccess : Action<string, string>
 
 public class ActionFail : Action<string>
 {
+    public ActionFail(SecretRepository secretRepository, OtherService service)
+    {
+    }
+
     public override Option<string> Run()
     {
         return Option<string>.Fail();
