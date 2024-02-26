@@ -1,4 +1,6 @@
-﻿namespace LightsCameraAction;
+﻿using System.Diagnostics.CodeAnalysis;
+
+namespace LightsCameraAction;
 
 public class Option<TResult>
 {
@@ -8,7 +10,7 @@ public class Option<TResult>
     public static Option<TResult> Success(TResult result) => new(result);
     public static Option<TResult> Fail() => new();
 
-    private Option(TResult result)
+    private Option([NotNull] TResult result)
     {
         _result = result;
     }
@@ -18,13 +20,18 @@ public class Option<TResult>
         _result = default;
     }
 
-    public TOut Match<TOut>(Func<TResult, TOut> success, Func<TOut> fail)
+    public TOut Match<TOut>(Func<TResult, TOut> onSuccess, Func<TOut> onFail)
     {
         if (_result is not null)
         {
-            return success(_result);
+            return onSuccess(_result);
         }
 
-        return fail();
+        return onFail();
+    }
+
+    public Option<TOut> Bind<TOut>(Func<TResult, Option<TOut>> onSuccess)
+    {
+        return Match(onSuccess, Option<TOut>.Fail);
     }
 }

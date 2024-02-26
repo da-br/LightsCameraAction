@@ -9,18 +9,36 @@ var logger = diContainer.GetLogger()!;
 
 var actionExecutor = diContainer.Build<ActionExecutor>();
 
+// simple run
 var action1 = diContainer.Build<ActionSuccess>();
+var res1 = actionExecutor.Execute("Action with pararm", () => action1.Run("SomeString"));
 
-var res1 = actionExecutor.Execute("Action with pararm", () => action1.Run("SomeString"),
-    onSuccess: s => s,
-    onFailure: () =>
-    {
-        logger.LogInformation("This failed");
-        return "";
-    });
+// run with bind
+var action2 = diContainer.Build<ActionSuccess>();
+var res2 = actionExecutor.Bind("bind 1", res1, s =>
+    action2.Run(s)
+);
 
+var action3 = diContainer.Build<ActionFail>();
+var res3 = actionExecutor.Bind("bind 2", res2, _ =>
+    action3.Run()
+);
+
+logger.LogInformation("The following word should be false: {Res}", res3.IsSuccess);
+
+// specify failed action runs explictly
+var action4 = new ActionFail(new SecretRepository(), new OtherService());
+var res4 = actionExecutor.Execute<string, string>("Run with match", action4,
+    result => result,
+    () => "failed");
+
+// control flow
 var answer = actionExecutor.If<string>("first if", () => true)
-    .OnTrue(ae => { return ae.Execute(new ActionFail(null, null), s => s, () => ""); })
+    .OnTrue(ae =>
+    {
+        return ae.Execute(new ActionFail(new SecretRepository(), new OtherService()))
+            .Match(s => s, () => "");
+    })
     .OnFalse(_ =>
     {
         var this1 = "";

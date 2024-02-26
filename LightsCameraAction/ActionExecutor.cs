@@ -1,4 +1,4 @@
-using System.ComponentModel;
+using System.Diagnostics;
 using System.Text;
 using Microsoft.Extensions.Logging;
 
@@ -8,37 +8,59 @@ public class ActionExecutor
 {
     private readonly ILogger _logger;
     private readonly Queue<ExecuteHistory> _history = new();
+    private readonly Stopwatch _sw;
 
     public ActionExecutor(ILogger<ActionExecutor> logger)
     {
         _logger = logger;
+        _sw = new Stopwatch();
     }
 
-    public TOut Execute<TResult, TOut>(string name, Func<Option<TResult>> action, Func<TResult, TOut> onSuccess, Func<TOut> onFailure)
+    public Option<TResult> Execute<TResult>(string name, Func<Option<TResult>> action)
     {
         using (_logger.BeginScope(action.GetType().Name))
         {
             _logger.LogTrace("Running {Name}:{ActionType}", name, action.GetType().Name);
 
+            _sw.Restart();
             var result = action();
+            _sw.Stop();
 
-            _history.Enqueue(new ExecuteHistory(name, action.GetType().Name, result.IsSuccess));
+            _history.Enqueue(new ExecuteHistory(name, action.GetType().Name, result.IsSuccess, _sw.Elapsed));
 
-            return result.Match(onSuccess, onFailure);
+            return result;
         }
     }
 
-    public TOut Execute<TResult, TOut>(Action<TResult> action, Func<TResult, TOut> onSuccess, Func<TOut> onFailure)
+    public Option<TResult> Execute<TResult>(Action<TResult> action)
     {
         using (_logger.BeginScope(action.GetType().Name))
         {
             _logger.LogTrace("Running {ActionType}", action.GetType().Name);
 
+            _sw.Restart();
             var result = action.Run();
+            _sw.Stop();
 
-            _history.Enqueue(new ExecuteHistory(action.GetType().Name, result.IsSuccess));
+            _history.Enqueue(new ExecuteHistory(action.GetType().Name, result.IsSuccess, _sw.Elapsed));
 
-            return result.Match(onSuccess, onFailure);
+            return result;
+        }
+    }
+
+    public Option<TOut> Bind<TResult, TOut>(string name, Option<TResult> previousResult, Func<TResult, Option<TOut>> binder)
+    {
+        using (_logger.BeginScope(name))
+        {
+            _logger.LogTrace("Running {Name}", name);
+
+            _sw.Restart();
+            var result = previousResult.Bind(binder);
+            _sw.Restart();
+
+            _history.Enqueue(new ExecuteHistory(name, result.IsSuccess, _sw.Elapsed));
+
+            return result;
         }
     }
 
@@ -48,9 +70,11 @@ public class ActionExecutor
         {
             _logger.LogTrace("Running {Name}:{ActionType}", name, action.GetType().Name);
 
+            _sw.Restart();
             var result = action.Run();
+            _sw.Stop();
 
-            _history.Enqueue(new ExecuteHistory(name, action.GetType().Name, result.IsSuccess));
+            _history.Enqueue(new ExecuteHistory(name, action.GetType().Name, result.IsSuccess, _sw.Elapsed));
 
             return result.Match(onSuccess, onFailure);
         }
@@ -63,11 +87,11 @@ public class ActionExecutor
             _logger.LogInformation("{Name}: Running {ControlFlow}", name, nameof(If));
             if (result())
             {
-                _history.Enqueue(new ExecuteHistory(name, "If", true));
+                _history.Enqueue(new ExecuteHistory(name, "If", true, TimeSpan.Zero));
                 return new TrueExecutor<TResult>(true, this, _logger);
             }
 
-            _history.Enqueue(new ExecuteHistory(name, "If", false));
+            _history.Enqueue(new ExecuteHistory(name, "If", false, TimeSpan.Zero));
             return new TrueExecutor<TResult>(false, this, _logger);
         }
     }
@@ -99,10 +123,10 @@ public class ActionExecutor
             }
 
             sb.Append(history.Type);
+            sb.Append(" = ");
+            sb.Append(history.Successful ? "Success" : "Fail");
             sb.AppendLine();
-            sb.Append('|');
-            sb.AppendLine();
-            sb.Append(history.Successful);
+            sb.AppendFormat("Took {0}s", history.Elapsed.TotalSeconds);
             sb.AppendLine();
             sb.Append('|');
             sb.AppendLine();
@@ -116,23 +140,26 @@ public class ActionExecutor
 
     private struct ExecuteHistory
     {
-        public ExecuteHistory(string type, bool success)
+        public ExecuteHistory(string type, bool success, TimeSpan elapsed)
         {
             Name = null;
             Type = type;
             Successful = success;
+            Elapsed = elapsed;
         }
 
-        public ExecuteHistory(string name, string type, bool success)
+        public ExecuteHistory(string name, string type, bool success, TimeSpan elapsed)
         {
             Name = name;
             Type = type;
             Successful = success;
+            Elapsed = elapsed;
         }
 
         public string? Name { get; set; }
         public string Type { get; set; }
         public bool Successful { get; }
+        public TimeSpan Elapsed { get; }
     }
 }
 
