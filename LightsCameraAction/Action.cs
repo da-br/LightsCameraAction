@@ -18,6 +18,8 @@ public class ActionSuccess : Action<string, string>
 
     public override Option<string> Run(string input)
     {
+        var rnd = new Random((int)DateTime.UtcNow.Ticks);
+        Thread.Sleep(rnd.Next(3000));
         return Option<string>.Success($"winner winner chicken dinner; {input}");
     }
 }
@@ -30,6 +32,8 @@ public class ActionFail : Action<string>
 
     public override Option<string> Run()
     {
+        var rnd = new Random((int)DateTime.UtcNow.Ticks);
+        Thread.Sleep(rnd.Next(3000));
         return Option<string>.Fail();
     }
 }

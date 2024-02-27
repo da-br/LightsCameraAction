@@ -23,7 +23,7 @@ var afterMatch = res1Again.Match(
     },
     () =>
     {
-        logger.LogInformation("The following word should be false: {Res}", "failed");
+        logger.LogInformation("The following word should be failed: {Res}", "failed");
         // Fail workflow somehow
         return "failed";
     });
