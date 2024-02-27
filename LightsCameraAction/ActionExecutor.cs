@@ -32,17 +32,17 @@ public class ActionExecutor
         }
     }
 
-    public Option<TResult> Execute<TResult>(Action<TResult> action)
+    public Option<TResult> Execute<TResult>(string name, Action<TResult> action)
     {
         using (_logger.BeginScope(action.GetType().Name))
         {
-            _logger.LogTrace("Running {ActionType}", action.GetType().Name);
+            _logger.LogTrace("Running {Name}:{ActionType}", name, action.GetType().Name);
 
             _sw.Restart();
             var result = action.Run();
             _sw.Stop();
 
-            _history.Enqueue(new ExecuteHistory(action.GetType().Name, result.IsSuccess, _sw.Elapsed));
+            _history.Enqueue(new ExecuteHistory(name, action.GetType().Name, result.IsSuccess, _sw.Elapsed));
 
             return result;
         }
