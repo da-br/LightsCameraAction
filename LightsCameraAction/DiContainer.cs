@@ -28,4 +28,9 @@ public class DiContainer
     {
         return ActivatorUtilities.CreateInstance<TAction>(_serviceProvider);
     }
+
+    public TAction Build<TAction>(params object[] args)
+    {
+        return ActivatorUtilities.CreateInstance<TAction>(_serviceProvider, args);
+    }
 }

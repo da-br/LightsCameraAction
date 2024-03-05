@@ -40,13 +40,26 @@ public class ActionFail : Action<string>
 
 public class ActionComplex : Action<ActionComplex.ComplexReturnType>
 {
+    private readonly SecretRepository _repository;
+    private readonly ComplexReturnType _complex;
+
+    public ActionComplex(SecretRepository repository, ComplexReturnType complex)
+    {
+        _repository = repository;
+        _complex = complex;
+    }
+
     public override Option<ComplexReturnType> Run()
     {
-        return Option<ComplexReturnType>.Success(new ComplexReturnType
+        var rnd = new Random((int)DateTime.UtcNow.Ticks);
+        Thread.Sleep(rnd.Next(3000));
+        var result = new ComplexReturnType
         {
-            Prop = "A string",
-            Thing = -1
-        });
+            Prop = _repository.Get(),
+            Thing = rnd.Next()
+        };
+
+        return Option<ComplexReturnType>.Success(result);
     }
 
     public struct ComplexReturnType

@@ -60,6 +60,17 @@ var answer = actionExecutor
         return $"{this1} this2";
     });
 
-logger.LogInformation("{History}", actionExecutor.RenderHistory(true));
 
+// provide constructor args
+var complex = new ActionComplex.ComplexReturnType { Prop = "prop", Thing = 42 };
+var action5 = diContainer.Build<ActionComplex>(complex);
+
+var res5 = actionExecutor.Execute("Run with complex", action5,
+    result => result.Prop == "shhh",
+    () => false
+);
+logger.LogInformation("The following word should be true: {Res}", res5);
+
+
+logger.LogInformation("{History}", actionExecutor.RenderHistory(true));
 logger.LogInformation("Finished");

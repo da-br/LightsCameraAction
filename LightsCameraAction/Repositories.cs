@@ -19,6 +19,11 @@ public class SecretRepository : IRepository<string>
     {
         return true;
     }
+
+    public string Get()
+    {
+        return "shhh";
+    }
 }
 
 public interface IService
@@ -27,10 +32,8 @@ public interface IService
 
 public class SomeService : IService
 {
-    
 }
 
 public class OtherService : IService
 {
-    
 }
